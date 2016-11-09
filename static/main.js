@@ -7,9 +7,10 @@
 .controller('WordcountController', ['$scope', '$log', '$http', '$timeout',
   function($scope, $log, $http, $timeout) {
 
+	  $scope.submitButtonText = 'Submit';
+	  $scope.loading = false;
+	  
   $scope.getResults = function() {
-
-    $log.log("gah");
 
     // get the URL from the input
     var userInput = $scope.url;
@@ -21,7 +22,9 @@
     success(function(results) {
       $log.log(results);
       getWordCount(results);
-
+	  $scope.wordcounts = null;
+      $scope.loading = true;
+      $scope.submitButtonText = 'Loading...';
     }).
     error(function(error) {
       $log.log(error);
@@ -42,6 +45,8 @@
 	      } else if (status === 200){
 	        $log.log(data);
 	        $scope.wordcounts = data;
+	        $scope.loading = false;
+	        $scope.submitButtonText = 'Submit';
 	        $timeout.cancel(timeout);
 	        return false;
 	      }
