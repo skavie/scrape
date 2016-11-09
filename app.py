@@ -5,6 +5,7 @@ import re
 import nltk
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+import json
 
 from stop_words import stops
 from collections import Counter
@@ -69,21 +70,31 @@ def count_and_save_words(url):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    results = {}
-    if request.method == "POST":
-        url = request.form['url']
-        if 'http://' not in url[:7]:
-            url = 'http://' + url
-        job = q.enqueue_call(func=count_and_save_words, args=(url,), result_ttl=5000)
-        print(job.get_id())
-    return render_template('index.html', results=results)
+    return render_template('index.html')
 
 
+@app.route('/start', methods=['POST'])
+def get_counts():
+    # get url
+    data = json.loads(request.data.decode())
+    url = data["url"]
+    if 'http://' not in url[:7]:
+        url = 'http://' + url
+    # start job
+    job = q.enqueue_call(
+        func=count_and_save_words, args=(url,), result_ttl=5000
+    )
+    # return created job id, which is a hash like 24a2bf9d-3b86-44a1-b840-13c4350fb748
+    return job.get_id()
+    
+    
 @app.route("/results/<job_key>", methods=['GET'])
 def get_results(job_key):
 
     job = Job.fetch(job_key, connection=conn)
-
+    print job.result
+    print job.get_id()
+    
     if job.is_finished:
         result = Result.query.filter_by(id=job.result).first()
         results = sorted(
@@ -91,10 +102,11 @@ def get_results(job_key):
                     key=operator.itemgetter(1),
                     reverse=True
                 )
+                
+        # return jsonify(result.result_no_stop_words), 200
         return jsonify(results), 200
     else:
         return "Nay!", 202
-
-
+    
 if __name__ == '__main__':
     app.run()
